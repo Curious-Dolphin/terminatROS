@@ -1,0 +1,32 @@
+/* Make the tabs taller, add padding, and make them fill the horizontal space */
+Tab {
+    padding: 0 2;
+    height: 2;
+    width: 1fr; /* This makes each tab expand to fill the available space */
+}
+
+Screen {
+    layout: vertical;
+}
+
+#details-container {
+    padding: 1;
+    layout: vertical;
+}
+
+#node-title {
+    content-align: center middle;
+    width: 100%;
+    margin-bottom: 1;
+}
+
+.table-title {
+    margin-top: 1;
+    background: $primary-background-darken-1;
+    text-style: bold;
+    padding: 0 1;
+}
+
+DataTable {
+    height: 1fr;
+}
