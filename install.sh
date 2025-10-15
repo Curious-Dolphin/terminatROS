@@ -58,4 +58,65 @@ if ! command -v pip3 &> /dev/null; then
     warn "pip3 (Python's package manager) is not installed, but is required."
     read -p "Do you want to install it now using 'apt'? (y/n) " -n 1 -r
     echo # move to a new line
-    if [[ "$RE
+    if [[ "$REPLY" =~ ^[Yy]$ ]]; then
+        info "Attempting to install python3-pip. This may ask for your password."
+        # Update package list and install pip3
+        sudo apt-get update
+        sudo apt-get install -y python3-pip
+        # Verify that the installation was successful
+        if ! command -v pip3 &> /dev/null; then
+            error "pip3 installation failed. Please try installing 'python3-pip' manually."
+            exit 1
+        fi
+        success "pip3 has been successfully installed."
+    else
+        error "Installation cancelled. pip3 is required to proceed."
+        exit 1
+    fi
+fi
+info "✓ pip3 is installed."
+
+# Check for 'textual' Python package
+info "Checking for 'textual' library..."
+if ! pip3 show textual &> /dev/null; then
+    warn "'textual' Python package not found."
+    read -p "Do you want to install it now? (y/n) " -n 1 -r
+    echo
+    if [[ "$REPLY" =~ ^[Yy]$ ]]; then
+        info "Installing 'textual' via pip3..."
+        pip3 install textual
+    else
+        error "Installation cancelled. 'textual' is required to run the app."
+        exit 1
+    fi
+fi
+info "✓ 'textual' is installed."
+
+
+# --- 3. Alias Configuration (Unchanged) ---
+info "Configuring alias..."
+SHELL_CONFIG_FILE=""
+if [[ "$SHELL" == *"bash"* ]]; then
+    SHELL_CONFIG_FILE="$HOME/.bashrc"
+elif [[ "$SHELL" == *"zsh"* ]]; then
+    SHELL_CONFIG_FILE="$HOME/.zshrc"
+else
+    error "Unsupported shell: $SHELL. Please configure the alias manually."
+    exit 1
+fi
+info "Detected shell config file: $SHELL_CONFIG_FILE"
+FULL_SRC_PATH=$(realpath "$SRC_PATH")
+ALIAS_CMD="alias $ALIAS_NAME='python3 \"$FULL_SRC_PATH\"'"
+if ! grep -q "# Alias for terminatROS" "$SHELL_CONFIG_FILE"; then
+    info "Adding alias to $SHELL_CONFIG_FILE..."
+    echo -e "\n# Alias for terminatROS" >> "$SHELL_CONFIG_FILE"
+    echo "$ALIAS_CMD" >> "$SHELL_CONFIG_FILE"
+else
+    info "Alias already exists. Skipping."
+fi
+
+
+# --- 4. Final Instructions (Unchanged) ---
+success "Configuration complete!"
+warn "To use the '$ALIAS_NAME' command, you must first restart your terminal"
+warn "or run: source $SHELL_CONFIG_FILE"
