@@ -1,122 +1,119 @@
 #!/usr/bin/env bash
 
-# Exit immediately if a command exits with a non-zero status.
-set -e
+# Exit immediately if a command fails, and print each command.
+set -ex
 
 # --- Configuration ---
-ALIAS_NAME="terminatros"
-SRC_PATH="src/terminatros.py"
+COMMAND_NAME="terminatros"
+SRC_PATH="main.py"
+VENV_PATH="./venv"
+PYTHON_DEPENDENCIES=("textual==0.58.0" "psutil" "pyyaml")
 
 # --- Helper Functions for Colored Output ---
-info() {
-    echo -e "\033[1;34m[INFO]\033[0m $1"
-}
-success() {
-    echo -e "\033[1;32m[SUCCESS]\033[0m $1"
-}
-error() {
-    echo -e "\033[1;31m[ERROR]\033[0m $1"
-}
-warn() {
-    echo -e "\033[1;33m[WARN]\033[0m $1"
-}
+info() { echo -e "\033[1;34m[INFO]\033[0m $1"; }
+success() { echo -e "\033[1;32m[SUCCESS]\033[0m $1"; }
+error() { echo -e "\033[1;31m[ERROR]\033[0m $1"; }
+warn() { echo -e "\033[1;33m[WARN]\033[0m $1"; }
 
+# --- 1. Dependency Checks & Virtual Environment Setup ---
+info "Checking system dependencies..."
+if ! command -v python3 &> /dev/null; then error "python3 could not be found." && exit 1; fi
+# More robust check for 'ensurepip', which is required to create a venv successfully.
+if ! python3 -c "import ensurepip" &> /dev/null; then
+    warn "Python 'venv' module or 'ensurepip' is not available. Attempting to install the correct version."
+    # Detect the major.minor version of the python3 command
+    PYTHON_VERSION=$(python3 --version | cut -d' ' -f2 | cut -d'.' -f1,2)
+    VENV_PACKAGE="python${PYTHON_VERSION}-venv"
+    info "Attempting to install '$VENV_PACKAGE' via apt..."
+    sudo apt-get update && sudo apt-get install -y "$VENV_PACKAGE"
+fi
+info "✓ Python's venv module is available."
 
-# --- 1. Find and Source ROS 2 ---
-info "Searching for ROS 2 environment..."
-if [ -z "$ROS_DISTRO" ]; then
-    ROS2_DISTROS=(humble foxy galactic rolling)
-    FOUND_ROS2=false
-    for distro in "${ROS2_DISTROS[@]}"; do
-        if [ -f "/opt/ros/$distro/setup.bash" ]; then
-            info "Found ROS 2 '$distro'. Sourcing environment..."
-            source "/opt/ros/$distro/setup.bash"
-            FOUND_ROS2=true
-            break
-        fi
-    done
-    if [ "$FOUND_ROS2" = false ]; then
-        error "Could not find a ROS 2 installation in /opt/ros/. Please install ROS 2 first."
-        exit 1
+# --- VENV VALIDATION AND CREATION (IMPROVED LOGIC) ---
+info "Validating or creating Python virtual environment at '$VENV_PATH'..."
+RECREATE_VENV=false
+if [ -f "$VENV_PATH/bin/pip" ]; then
+    # A venv exists. Check if its Python interpreter path is valid.
+    VENV_PYTHON_INTERPRETER=$(head -n 1 "$VENV_PATH/bin/pip" | sed 's/^#!//')
+    if [ ! -f "$VENV_PYTHON_INTERPRETER" ]; then
+        # The interpreter points to an old, non-existent location.
+        warn "Stale virtual environment detected (project likely moved or copied)."
+        RECREATE_VENV=true
+    else
+        info "Virtual environment appears to be valid."
     fi
 else
-    info "ROS 2 environment is already sourced (Distro: $ROS_DISTRO)."
+    # No venv exists at all.
+    info "No virtual environment found."
+    RECREATE_VENV=true
 fi
 
-
-# --- 2. Dependency Checks ---
-info "Checking dependencies..."
-
-if ! command -v ros2 &> /dev/null; then
-    error "ROS 2 command not found, even after sourcing. Your installation may be broken."
-    exit 1
+if [ "$RECREATE_VENV" = true ]; then
+    info "Recreating virtual environment..."
+    rm -rf "$VENV_PATH"
+    python3 -m venv "$VENV_PATH"
 fi
-info "✓ ROS 2 command is available."
+info "✓ Virtual environment is ready."
+# --- END IMPROVED LOGIC ---
 
-# Check for pip3, and install if it's missing (NEW & IMPROVED SECTION)
-if ! command -v pip3 &> /dev/null; then
-    warn "pip3 (Python's package manager) is not installed, but is required."
-    read -p "Do you want to install it now using 'apt'? (y/n) " -n 1 -r
-    echo # move to a new line
-    if [[ "$REPLY" =~ ^[Yy]$ ]]; then
-        info "Attempting to install python3-pip. This may ask for your password."
-        # Update package list and install pip3
-        sudo apt-get update
-        sudo apt-get install -y python3-pip
-        # Verify that the installation was successful
-        if ! command -v pip3 &> /dev/null; then
-            error "pip3 installation failed. Please try installing 'python3-pip' manually."
-            exit 1
-        fi
-        success "pip3 has been successfully installed."
-    else
-        error "Installation cancelled. pip3 is required to proceed."
-        exit 1
-    fi
-fi
-info "✓ pip3 is installed."
-
-# Check for 'textual' Python package
-info "Checking for 'textual' library..."
-if ! pip3 show textual &> /dev/null; then
-    warn "'textual' Python package not found."
-    read -p "Do you want to install it now? (y/n) " -n 1 -r
-    echo
-    if [[ "$REPLY" =~ ^[Yy]$ ]]; then
-        info "Installing 'textual' via pip3..."
-        pip3 install textual
-    else
-        error "Installation cancelled. 'textual' is required to run the app."
-        exit 1
-    fi
-fi
-info "✓ 'textual' is installed."
+info "Installing Python packages..."
+"$VENV_PATH/bin/pip" install --upgrade "${PYTHON_DEPENDENCIES[@]}"
+info "✓ All required Python packages are installed in the venv."
 
 
-# --- 3. Alias Configuration (Unchanged) ---
-info "Configuring alias..."
+# --- 2. Shell Function Configuration (FINAL FIX) ---
+info "Configuring shell function..."
 SHELL_CONFIG_FILE=""
 if [[ "$SHELL" == *"bash"* ]]; then
     SHELL_CONFIG_FILE="$HOME/.bashrc"
 elif [[ "$SHELL" == *"zsh"* ]]; then
     SHELL_CONFIG_FILE="$HOME/.zshrc"
 else
-    error "Unsupported shell: $SHELL. Please configure the alias manually."
-    exit 1
+    error "Unsupported shell: $SHELL." && exit 1
 fi
 info "Detected shell config file: $SHELL_CONFIG_FILE"
-FULL_SRC_PATH=$(realpath "$SRC_PATH")
-ALIAS_CMD="alias $ALIAS_NAME='python3 \"$FULL_SRC_PATH\"'"
-if ! grep -q "# Alias for terminatROS" "$SHELL_CONFIG_FILE"; then
-    info "Adding alias to $SHELL_CONFIG_FILE..."
-    echo -e "\n# Alias for terminatROS" >> "$SHELL_CONFIG_FILE"
-    echo "$ALIAS_CMD" >> "$SHELL_CONFIG_FILE"
-else
-    info "Alias already exists. Skipping."
-fi
+
+info "Constructing absolute paths..."
+# Get the directory where the install.sh script is currently running. This makes it generic.
+CURRENT_DIR=$(pwd)
+
+# Resolve path to be clean, removing any './'
+CLEAN_VENV_PATH=$(realpath -m "$CURRENT_DIR/$VENV_PATH")
+FULL_SRC_PATH="$CURRENT_DIR/$SRC_PATH"
+FULL_VENV_ACTIVATE_PATH="$CLEAN_VENV_PATH/bin/activate"
+info "Source path: $FULL_SRC_PATH"
+info "Venv activate path: $FULL_VENV_ACTIVATE_PATH"
+
+# Use printf -v to safely create the multi-line function string
+printf -v FUNCTION_DEFINITION 'function %s() {\n    source "%s" && python3 "%s" "$@"\n}' \
+    "$COMMAND_NAME" \
+    "$FULL_VENV_ACTIVATE_PATH" \
+    "$FULL_SRC_PATH"
+
+START_MARKER="# START terminatROS function"
+END_MARKER="# END terminatROS function"
+
+info "Cleaning up old definitions from $SHELL_CONFIG_FILE..."
+awk -v start="$START_MARKER" -v end="$END_MARKER" '
+    !($0 ~ start), c;
+    $0 ~ start {c=1}
+    $0 ~ end {c=0}
+' "$SHELL_CONFIG_FILE" > "${SHELL_CONFIG_FILE}.tmp" && mv "${SHELL_CONFIG_FILE}.tmp" "$SHELL_CONFIG_FILE"
+sed -i "/alias $COMMAND_NAME=/d" "$SHELL_CONFIG_FILE"
+
+info "Adding new function to $SHELL_CONFIG_FILE..."
+{
+    echo ""
+    echo "$START_MARKER"
+    echo "$FUNCTION_DEFINITION"
+    echo "$END_MARKER"
+} >> "$SHELL_CONFIG_FILE"
+info "✓ Shell function configured."
 
 
-# --- 4. Final Instructions (Unchanged) ---
+# --- 3. Final Instructions ---
 success "Configuration complete!"
-warn "To use the '$ALIAS_NAME' command, you must first restart your terminal"
-warn "or run: source $SHELL_CONFIG_FILE"
+warn "To use the '$COMMAND_NAME' command, you must reload your shell:"
+echo -e "  \033[1;32msource $SHELL_CONFIG_FILE\033[0m"
+echo
+

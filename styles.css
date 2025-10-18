@@ -1,32 +1,135 @@
-/* Make the tabs taller, add padding, and make them fill the horizontal space */
+/*
+ * TerminatROS Theme using Textual's Supported Colors
+ */
+
+/* --- Base Layout & Colors --- */
+Screen {
+    background: $background;
+    color: $text;
+    layout: vertical;
+}
+
+/* --- Header & Footer --- */
+Header, Footer {
+    background: $panel;
+    color: $secondary;
+    text-style: bold;
+}
+Footer > .footer--key {
+    background: $surface;
+    text-style: bold;
+    color: $accent;
+}
+
+/* --- Main View Tabs --- */
+Tabs {
+    background: $panel;
+    padding-bottom: 1;
+}
 Tab {
+    background: $surface;
+    color: $text;
     padding: 0 2;
     height: 2;
-    width: 1fr; /* This makes each tab expand to fill the available space */
+    width: 1fr;
 }
-
-Screen {
-    layout: vertical;
+Tab:hover {
+    background: $primary;
 }
-
-#details-container {
-    padding: 1;
-    layout: vertical;
-}
-
-#node-title {
-    content-align: center middle;
-    width: 100%;
-    margin-bottom: 1;
-}
-
-.table-title {
-    margin-top: 1;
-    background: $primary-background-darken-1;
+Tab.-active {
+    background: $background;
+    color: $accent;
     text-style: bold;
-    padding: 0 1;
 }
 
+/* --- Nodes Tab Layout --- */
+#logo-container {
+    height: 10;
+    align: center middle;
+}
+#logo-art {
+    width: auto;
+    height: 100%;
+    color: $secondary;
+}
+#main-split {
+    /* This creates the main two-column layout */
+}
+#nodes-list-container {
+    width: 3fr; /* Give 75% of the space to the node list */
+    padding-right: 1;
+}
+#system-stats-container {
+    width: 1fr; /* Give 25% of the space to the system stats */
+    padding-left: 1;
+    border-left: thick $surface;
+}
+
+/* --- Content Containers --- */
+#nodes, #topics, #services, #actions, #controllers {
+    layout: vertical;
+    padding: 0 1; 
+}
+
+/* --- Filter/Search Bars --- */
+#node-filter-input,
+#topic-filter-input,
+#service-filter-input,
+#action-filter-input,
+#controller-filter-input {
+    margin-bottom: 1;
+    border: round $primary;
+}
+#node-filter-input:focus,
+#topic-filter-input:focus,
+#service-filter-input:focus,
+#action-filter-input:focus,
+#controller-filter-input:focus {
+    border: round $accent;
+}
+
+/* --- Data Tables --- */
 DataTable {
+    background: $background;
+    border: none;
     height: 1fr;
+}
+DataTable .datatable--header {
+    background: $surface;
+    text-style: bold;
+    color: $secondary;
+}
+DataTable > .datatable--cursor {
+    background: $accent;
+    color: $background;
+    text-style: bold;
+}
+
+/* --- System Monitor Widgets --- */
+.system-title {
+    margin-top: 1;
+    text-style: bold;
+    color: $secondary;
+}
+ProgressBar {
+    margin-top: 1;
+    color: $success;
+    color: $error 30%;
+}
+#cpu-sparkline {
+    margin-top: 1;
+    color: $accent;
+    height: 3;
+}
+
+/* --- Detail Screens --- */
+#details-container { padding: 1; layout: vertical; }
+#node-title { content-align: center middle; width: 100%; margin-bottom: 1; color: $success; text-style: bold; }
+.table-title { margin-top: 1; background: $surface; color: $text; text-style: bold; padding: 0 1; }
+
+/* --- NEW: Topic Echo Screen --- */
+Log {
+    background: $panel;      /* A dark background matching the header/footer */
+    padding: 1;              /* Give the text some breathing room */
+    border: round $surface;  /* Add a subtle border to frame the output */
 }

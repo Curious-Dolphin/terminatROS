@@ -20,17 +20,13 @@ class NodeDetailScreen(Screen):
         """Compose the layout of the node detail screen."""
         yield Header()
         yield Container(
-            Label(f"Details for: {self.node_namespace}{self.node_name}", id="node-title"),
-            
+            Label(f"Details for: {self.node_namespace.rstrip('/')}/{self.node_name}", id="node-title"),
             Label("Publishers", classes="table-title"),
             VerticalScroll(DataTable(id="publishers-table")),
-            
             Label("Subscribers", classes="table-title"),
             VerticalScroll(DataTable(id="subscribers-table")),
-            
             Label("Parameters", classes="table-title"),
             VerticalScroll(DataTable(id="parameters-table")),
-            
             id="details-container"
         )
         yield Footer()
@@ -53,8 +49,9 @@ class NodeDetailScreen(Screen):
 
     def _update_details(self) -> None:
         """Fetch details from the ROS manager and update the tables."""
-        publishers, subscribers, parameters = self.ros_manager.get_node_details(
-            self.node_name, self.node_namespace
+        # FIX: The call now includes a callback and gets a placeholder for parameters
+        publishers, subscribers, initial_params = self.ros_manager.get_node_details(
+            self.node_name, self.node_namespace, self.update_parameters_table
         )
         
         pub_table = self.query_one("#publishers-table", DataTable)
@@ -67,6 +64,12 @@ class NodeDetailScreen(Screen):
         for topic, types in subscribers:
             sub_table.add_row(topic, ", ".join(types))
 
+        # Immediately update the parameters table with the "Loading..." message
+        self.update_parameters_table(initial_params)
+
+    # FIX: New public method to serve as the callback for when parameter data arrives
+    def update_parameters_table(self, parameters: list) -> None:
+        """Clears and repopulates the parameters table with new data."""
         param_table = self.query_one("#parameters-table", DataTable)
         param_table.clear()
         for name, value in parameters:
